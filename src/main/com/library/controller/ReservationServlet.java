@@ -1,5 +1,9 @@
 package com.library.controller;
 
+
+import java.net.URLEncoder;
+
+
 import com.library.dao.ReservationDAO;
 import com.library.model.Reservation;
 import com.library.model.Reader;
@@ -43,9 +47,9 @@ public class ReservationServlet extends HttpServlet {
                 if (success) {
                     resp.sendRedirect(req.getContextPath() + "/reserve/list");
                 } else {
-                    req.setAttribute("errorMsg", "预约失败：你已预约该图书或图书可直接借阅");
-                    req.getRequestDispatcher("/reader/bookList").forward(req, resp);
-                }
+                    String errorMsg = "预约失败：你已预约该图书或图书可直接借阅";
+                    resp.sendRedirect(req.getContextPath() + "/reserve/list?errorMsg="
+                            + URLEncoder.encode(errorMsg,  "UTF-8"));                }
             } else if ("/cancel".equals(pathInfo)) {
                 // 取消预约
                 Integer reserveId = Integer.parseInt(req.getParameter("reserveId"));
@@ -54,18 +58,20 @@ public class ReservationServlet extends HttpServlet {
                 if (success) {
                     resp.sendRedirect(req.getContextPath() + "/reserve/list");
                 } else {
-                    req.setAttribute("errorMsg", "取消预约失败：预约已生效或不存在");
-                    req.getRequestDispatcher("/reserve/list").forward(req, resp);
-                }
+                    String errorMsg = "取消预约失败：预约已生效或不存在";
+                    resp.sendRedirect(req.getContextPath() + "/reserve/list?errorMsg="
+                            + URLEncoder.encode(errorMsg, "UTF-8"));                }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            req.setAttribute("errorMsg", "预约操作失败：数据库异常");
-            req.getRequestDispatcher("/reader/bookList").forward(req, resp);
+            String errorMsg = "预约操作失败：数据库异常";
+            resp.sendRedirect(req.getContextPath() + "/reserve/list?errorMsg="
+                    + URLEncoder.encode(errorMsg,  "UTF-8"));
         } catch (NumberFormatException e) {
             e.printStackTrace();
-            req.setAttribute("errorMsg", "参数错误：ID格式异常");
-            req.getRequestDispatcher("/reader/bookList").forward(req, resp);
+            String errorMsg = "参数错误：ID格式异常";
+            resp.sendRedirect(req.getContextPath() + "/reserve/list?errorMsg="
+                    + URLEncoder.encode(errorMsg,  "UTF-8"));
         }
     }
 
@@ -80,6 +86,15 @@ public class ReservationServlet extends HttpServlet {
             resp.sendRedirect(req.getContextPath() + "/login");
             return;
         }
+
+
+        // 获取通过URL传递的错误信息
+        String errorMsg = req.getParameter("errorMsg");
+        if (errorMsg != null && !errorMsg.isEmpty()) {
+            req.setAttribute("errorMsg", errorMsg);
+        }
+
+
 
         try {
             ReservationDAO reserveDAO = new ReservationDAO();

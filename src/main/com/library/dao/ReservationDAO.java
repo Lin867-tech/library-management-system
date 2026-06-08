@@ -80,16 +80,41 @@ public class ReservationDAO {
     }
 
     public boolean cancel(Integer reserveId) throws SQLException {
-        String sql = "UPDATE reservation SET reserve_status=2 WHERE reserve_id=? AND reserve_status=0";
         Connection conn = null;
         PreparedStatement pstmt = null;
+        ResultSet rs = null;
         try {
             conn = DBUtil.getConnection();
-            pstmt = conn.prepareStatement(sql);
+            // 1. 查询当前预约的读者ID、图书ID、状态
+            String querySql = "SELECT reader_id, book_id, reserve_status FROM reservation WHERE reserve_id = ?";
+            pstmt = conn.prepareStatement(querySql);
             pstmt.setInt(1, reserveId);
-            return pstmt.executeUpdate() > 0;
+            rs = pstmt.executeQuery();
+            if (!rs.next()) {
+                return false; // 预约不存在
+            }
+            int status = rs.getInt("reserve_status");
+            if (status == 2) {
+                return true; // 已经是取消状态，无需操作
+            }
+            int readerId = rs.getInt("reader_id");
+            int bookId = rs.getInt("book_id");
+
+            // 2. 删除该读者对该书已有的已取消记录（避免唯一键冲突）
+            String deleteOldSql = "DELETE FROM reservation WHERE reader_id = ? AND book_id = ? AND reserve_status = 2";
+            pstmt = conn.prepareStatement(deleteOldSql);
+            pstmt.setInt(1, readerId);
+            pstmt.setInt(2, bookId);
+            pstmt.executeUpdate();
+
+            // 3. 将当前预约状态更新为 2（已取消）
+            String updateSql = "UPDATE reservation SET reserve_status = 2 WHERE reserve_id = ? AND reserve_status = 0";
+            pstmt = conn.prepareStatement(updateSql);
+            pstmt.setInt(1, reserveId);
+            int affected = pstmt.executeUpdate();
+            return affected > 0;
         } finally {
-            DBUtil.close(conn, pstmt);
+            DBUtil.close(conn, pstmt, rs);
         }
     }
 

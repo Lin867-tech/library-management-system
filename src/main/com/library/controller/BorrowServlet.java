@@ -4,6 +4,7 @@ import com.library.dao.BookDAO;
 import com.library.dao.BorrowDAO;
 import com.library.model.Borrow;
 import com.library.model.Reader;
+import com.library.model.Book;
 
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
@@ -12,17 +13,20 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.net.URLEncoder;
 import java.sql.SQLException;
 import java.util.Date;
 
 /**
  * 借阅/归还控制器
  */
-//@WebServlet("/borrow/*")
+//@WebServlet("/borrow/*")   // 保留原注释
 public class BorrowServlet extends HttpServlet {
+
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
         req.setCharacterEncoding("UTF-8");
+        resp.getWriter().println("BorrowServlet doPost called: pathInfo=" + req.getPathInfo());
         HttpSession session = req.getSession();
         Reader reader = (Reader) session.getAttribute("loginReader");
         if (reader == null) {
@@ -32,10 +36,24 @@ public class BorrowServlet extends HttpServlet {
 
         String pathInfo = req.getPathInfo(); // /borrow/borrow 或 /borrow/return
         try {
-            if ("/borrow".equals(pathInfo)) {
+            if (pathInfo == null || "/borrow".equals(pathInfo)) {
                 // 借阅图书
                 Integer bookId = Integer.parseInt(req.getParameter("bookId"));
                 BookDAO bookDAO = new BookDAO();
+                Book book = bookDAO.getById(bookId);
+                if (book == null) {
+                    String errorMsg = "图书不存在";
+                    resp.sendRedirect(req.getContextPath() + "/book/list?errorMsg="
+                            + URLEncoder.encode(errorMsg, "UTF-8"));
+                    return;
+                }
+                if (book.getStatus() == 2) {
+                    String errorMsg = "该图书已下架，无法借阅";
+                    resp.sendRedirect(req.getContextPath() + "/book/list?errorMsg="
+                            + URLEncoder.encode(errorMsg, "UTF-8"));
+                    return;
+                }
+
                 boolean borrowSuccess = bookDAO.borrowBook(bookId);
                 if (borrowSuccess) {
                     // 添加借阅记录
@@ -47,9 +65,12 @@ public class BorrowServlet extends HttpServlet {
                     BorrowDAO borrowDAO = new BorrowDAO();
                     borrowDAO.add(borrow);
                     resp.sendRedirect(req.getContextPath() + "/reader/borrowList");
+                    return;
                 } else {
-                    req.setAttribute("errorMsg", "借阅失败：图书库存不足");
-                    req.getRequestDispatcher("/reader/bookList").forward(req, resp);
+                    String errorMsg = "借阅失败：图书库存不足";
+                    resp.sendRedirect(req.getContextPath() + "/book/list?errorMsg="
+                            + URLEncoder.encode(errorMsg, "UTF-8"));
+                    return;
                 }
             } else if ("/return".equals(pathInfo)) {
                 // 归还图书
@@ -62,19 +83,24 @@ public class BorrowServlet extends HttpServlet {
                     BorrowDAO borrowDAO = new BorrowDAO();
                     borrowDAO.returnBook(borrowId, new Date());
                     resp.sendRedirect(req.getContextPath() + "/reader/borrowList");
+                    return;
                 } else {
-                    req.setAttribute("errorMsg", "归还失败：数据库异常");
-                    req.getRequestDispatcher("/reader/borrowList").forward(req, resp);
+                    String errorMsg = "归还失败：数据库异常";
+                    resp.sendRedirect(req.getContextPath() + "/book/list?errorMsg="
+                            + URLEncoder.encode(errorMsg, "UTF-8"));
+                    return;
                 }
             }
         } catch (SQLException e) {
             e.printStackTrace();
-            req.setAttribute("errorMsg", "操作失败：数据库异常");
-            req.getRequestDispatcher("/reader/bookList").forward(req, resp);
+            String errorMsg = "操作失败：数据库异常";
+            resp.sendRedirect(req.getContextPath() + "/book/list?errorMsg="
+                    + URLEncoder.encode(errorMsg, "UTF-8"));
         } catch (NumberFormatException e) {
             e.printStackTrace();
-            req.setAttribute("errorMsg", "参数错误：图书ID格式异常");
-            req.getRequestDispatcher("/reader/bookList").forward(req, resp);
+            String errorMsg = "参数错误：图书ID格式异常";
+            resp.sendRedirect(req.getContextPath() + "/book/list?errorMsg="
+                    + URLEncoder.encode(errorMsg, "UTF-8"));
         }
     }
 

@@ -68,7 +68,7 @@
     </servlet>
     <servlet-mapping>
         <servlet-name>BorrowServlet</servlet-name>
-        <url-pattern>/borrow/*</url-pattern>
+        <url-pattern>/borrow/borrow</url-pattern>
         <url-pattern>/reader/borrowList</url-pattern>
     </servlet-mapping>
 
@@ -105,6 +105,17 @@
         <url-pattern>/admin/reader/*</url-pattern>
         <url-pattern>/admin/reader/list</url-pattern>
     </servlet-mapping>
+
+    <!-- 图书状态更新映射 -->
+    <servlet>
+        <servlet-name>AdminUpdateBookStatusServlet</servlet-name>
+        <servlet-class>com.library.controller.AdminUpdateBookStatusServlet</servlet-class>
+    </servlet>
+    <servlet-mapping>
+        <servlet-name>AdminUpdateBookStatusServlet</servlet-name>
+        <url-pattern>/admin/book/updateStatus</url-pattern>
+    </servlet-mapping>
+
 
     <!-- JSP 性能优化：关闭开发模式，禁止每次请求重新编译 -->
     <jsp-config>
