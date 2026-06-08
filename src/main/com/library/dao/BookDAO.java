@@ -10,16 +10,32 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 
+import com.alibaba.fastjson.JSON;
+import com.library.util.RedisUtil;
+import redis.clients.jedis.Jedis;
+
 public class BookDAO {
 
     public List<Book> listAll() throws SQLException {
+        String cacheKey = "book_list_all";
+        // 1. 尝试从 Redis 获取
+        try (Jedis jedis = RedisUtil.getPool().getResource()) {
+            String cached = jedis.get(cacheKey);
+            if (cached != null && !cached.isEmpty()) {
+                return JSON.parseArray(cached, Book.class);
+            }
+        } catch (Exception e) {
+            e.printStackTrace(); // 缓存失败不影响主流程
+        }
+
+        // 2. 从数据库查询（保持原有逻辑）
+        List<Book> list = new ArrayList<>();
         String sql = "SELECT * FROM book";
         Connection conn = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
-        List<Book> list = new ArrayList<>();
         try {
-            conn = DBUtil.getConnection();
+            conn = DBUtil.getConnection();   // 使用你现有的 DBUtil
             pstmt = conn.prepareStatement(sql);
             rs = pstmt.executeQuery();
             while (rs.next()) {
@@ -37,6 +53,13 @@ public class BookDAO {
             }
         } finally {
             DBUtil.close(conn, pstmt, rs);
+        }
+
+        // 3. 写入 Redis，过期 30 秒
+        try (Jedis jedis = RedisUtil.getPool().getResource()) {
+            jedis.setex(cacheKey, 30, JSON.toJSONString(list));
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return list;
     }
